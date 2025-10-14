@@ -1,6 +1,5 @@
 import SwiftUI
 import LocalAuthentication
-import AuthenticationServices
 
 // MARK: - LoginView
 struct LoginView: View {
@@ -66,20 +65,6 @@ struct LoginView: View {
                     .buttonStyle(PMRPrimaryButtonStyle())
                     .disabled(!isValid || isLoading)
                     .opacity(!isValid || isLoading ? 0.6 : 1)
-
-                    // Divider
-                    HStack {
-                        Rectangle().fill(.gray.opacity(0.3)).frame(height: 1)
-                        Text("or")
-                            .foregroundColor(.gray)
-                            .font(.caption)
-                        Rectangle().fill(.gray.opacity(0.3)).frame(height: 1)
-                    }
-
-                    // Sign in with Apple
-                    SignInWithAppleButtonRepresentable(type: .signIn, style: .black)
-                        .frame(height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     // Biometrics shortcut
                     Button(action: authenticateBiometrics) {
@@ -242,18 +227,6 @@ struct PMRSecondaryButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
-}
-
-// MARK: - Sign in with Apple (UIKit wrapper)
-struct SignInWithAppleButtonRepresentable: UIViewRepresentable {
-    var type: ASAuthorizationAppleIDButton.ButtonType = .default
-    var style: ASAuthorizationAppleIDButton.Style = .black
-
-    func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
-        ASAuthorizationAppleIDButton(type: type, style: style)
-    }
-
-    func updateUIView(_ uiView: ASAuthorizationAppleIDButton, context: Context) {}
 }
 
 // MARK: - Email Validation

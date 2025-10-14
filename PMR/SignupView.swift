@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 import LocalAuthentication
 
 // MARK: - SignupView
@@ -18,7 +17,6 @@ struct SignupView: View {
 
     var body: some View {
         ZStack {
-            // White background
             Color.white.ignoresSafeArea()
 
             ScrollView {
@@ -45,9 +43,15 @@ struct SignupView: View {
                     VStack(spacing: 16) {
                         PMRTextField(title: "Full name", text: $fullName, icon: "person")
 
-                        PMRTextField(title: "Email", text: $email, icon: "envelope", keyboard: .emailAddress, textContentType: .emailAddress)
+                        PMRTextField(
+                            title: "Email",
+                            text: $email,
+                            icon: "envelope",
+                            keyboard: .emailAddress,
+                            textContentType: .emailAddress
+                        )
 
-                        // Password field with strength meter
+                        // Password + strength
                         VStack(spacing: 8) {
                             PMRSecureField(title: "Password", text: $password, icon: "lock")
                             PasswordStrengthView(password: password)
@@ -80,21 +84,6 @@ struct SignupView: View {
                         .buttonStyle(PMRPrimaryButtonStyle())
                         .disabled(!formValid || isLoading)
                         .opacity(!formValid || isLoading ? 0.6 : 1)
-
-                        // Divider
-                        HStack {
-                            Rectangle().fill(.gray.opacity(0.3)).frame(height: 1)
-                            Text("or")
-                                .foregroundColor(.gray)
-                                .font(.caption)
-                            Rectangle().fill(.gray.opacity(0.3)).frame(height: 1)
-                        }
-
-                        // Sign in with Apple
-                        SignInWithAppleButtonRepresentable(type: .signUp, style: .black)
-                            .frame(height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .accessibilityLabel("Sign up with Apple")
                     }
                     .padding(22)
                     .background(Color.white)
@@ -123,18 +112,23 @@ struct SignupView: View {
     // MARK: - Validation
     private var formValid: Bool {
         !fullName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        email.isValidEmail &&
+        isValidEmail(email) &&
         passwordValid &&
         (password == confirmPassword) &&
         acceptedTerms
     }
 
     private var passwordValid: Bool {
-        // Example policy: >= 8 chars, at least 1 number and 1 letter
         let lengthOK = password.count >= 8
         let hasNumber = password.range(of: #".*[0-9].*"#, options: .regularExpression) != nil
         let hasLetter = password.range(of: #".*[A-Za-z].*"#, options: .regularExpression) != nil
         return lengthOK && hasNumber && hasLetter
+    }
+
+    private func isValidEmail(_ value: String) -> Bool {
+        let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        let predicate = NSPredicate(format: "SELF MATCHES %@", pattern)
+        return predicate.evaluate(with: value)
     }
 
     // MARK: - Actions
@@ -146,10 +140,8 @@ struct SignupView: View {
         errorMessage = nil
         isLoading = true
 
-        // TODO: Replace with your auth service call (CloudKit / custom backend)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             isLoading = false
-            // On success, navigate to the app's main screen
         }
     }
 }
@@ -171,10 +163,10 @@ struct PasswordStrengthView: View {
     private var label: String {
         switch score {
         case 0...1: return "Very weak"
-        case 2: return "Weak"
-        case 3: return "Fair"
-        case 4: return "Strong"
-        default: return "Very strong"
+        case 2:     return "Weak"
+        case 3:     return "Fair"
+        case 4:     return "Strong"
+        default:    return "Very strong"
         }
     }
 
@@ -182,108 +174,28 @@ struct PasswordStrengthView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.15))
-                    .frame(height: 8)
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(score >= 4 ? Color.green : (score >= 3 ? Color.orange : Color.red))
-                    .frame(width: max(12, barFillWidth), height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: score)
+            GeometryReader { geo in
+                let width = max(12, geo.size.width * barFill)
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(height: 8)
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(score >= 4 ? Color.green : (score >= 3 ? Color.orange : Color.red))
+                        .frame(width: width, height: 8)
+                        .animation(.easeInOut(duration: 0.2), value: score)
+                }
             }
+            .frame(height: 8)
+
             Text(label)
                 .font(.caption2)
                 .foregroundColor(.gray)
         }
     }
-
-    private var barFillWidth: CGFloat {
-        // Assume typical card width minus padding
-        let maxWidth: CGFloat = UIScreen.main.bounds.width - 64
-        return maxWidth * barFill
-    }
-}
-
-// MARK: - Reusable Controls
-// If you already defined PMRTextField and PMRSecureField in your project, remove these duplicates.
-struct PMRTextField: View {
-    let title: String
-    @Binding var text: String
-    let icon: String
-    var keyboard: UIKeyboardType = .default
-    var textContentType: UITextContentType? = nil
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .imageScale(.medium)
-                .foregroundColor(.gray)
-                .frame(width: 24)
-
-            TextField(title, text: $text)
-                .textContentType(textContentType)
-                .keyboardType(keyboard)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled(true)
-                .foregroundColor(.black)
-                .tint(.blue)
-                .submitLabel(.next)
-        }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.gray.opacity(0.1)))
-    }
-}
-
-struct PMRSecureField: View {
-    let title: String
-    @Binding var text: String
-    let icon: String
-    @State private var isSecure: Bool = true
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .imageScale(.medium)
-                .foregroundColor(.gray)
-                .frame(width: 24)
-
-            Group {
-                if isSecure {
-                    SecureField(title, text: $text)
-                } else {
-                    TextField(title, text: $text)
-                }
-            }
-            .textContentType(.newPassword)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled(true)
-            .foregroundColor(.black)
-            .tint(.blue)
-            .submitLabel(.next)
-
-            Button(action: { isSecure.toggle() }) {
-                Image(systemName: isSecure ? "eye" : "eye.slash")
-                    .foregroundColor(.gray)
-            }
-            .accessibilityLabel(isSecure ? "Show password" : "Hide password")
-        }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.gray.opacity(0.1)))
-    }
-}
-
-// MARK: - Email Validation
-fileprivate extension String {
-    var isValidEmail: Bool {
-        let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
-        let predicate = NSPredicate(format: "SELF MATCHES %@", pattern)
-        return predicate.evaluate(with: self)
-    }
 }
 
 // MARK: - Preview
 #Preview {
-    NavigationStack {
-        SignupView()
-    }
+    NavigationStack { SignupView() }
 }
