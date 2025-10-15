@@ -1,17 +1,30 @@
-//
-//  PMRApp.swift
-//  PMR
-//
-//  Created by Sandil on 2025-10-14.
-//
-
 import SwiftUI
+import FirebaseCore
 
 @main
 struct PMRApp: App {
+    @StateObject private var session = SessionViewModel()
+
+    init() {
+        FirebaseApp.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(session)
+        }
+    }
+}
+
+struct RootView: View {
+    @EnvironmentObject var session: SessionViewModel
+
+    var body: some View {
+        if session.isAuthenticated {
+            DashboardView()
+        } else {
+            LoginView()  // <-- no trailing closure
         }
     }
 }

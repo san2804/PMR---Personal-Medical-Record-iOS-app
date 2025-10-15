@@ -1,5 +1,6 @@
 import SwiftUI
 
+// MARK: - Root Tabbed Dashboard
 struct DashboardView: View {
     var body: some View {
         TabView {
@@ -23,19 +24,20 @@ struct DashboardView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
-        .tint(Color.blue)
+        .tint(.blue)
     }
 }
 
-// MARK: - Home Dashboard
+// MARK: - Home Dashboard (first tab)
 struct HomeDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Header with logo
-                    HStack(spacing: 12) {
-                        Image("PMRLogo") // Your logo in Assets
+
+                    // Header with logo and greeting
+                    HStack(spacing: 15) {
+                        Image("PMRLogo") // add to Assets as PMRLogo
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 50, height: 50)
@@ -54,64 +56,64 @@ struct HomeDashboardView: View {
                     }
                     .padding(.horizontal)
 
-                    // Quick Summary
+                    // Quick summary cards
                     HStack(spacing: 16) {
                         SummaryCard(icon: "heart.fill", title: "Health Score", value: "82")
                         SummaryCard(icon: "doc.text.fill", title: "Records", value: "12")
                     }
                     .padding(.horizontal)
 
-                    // Dashboard Sections
+                    // Quick Access section
                     Text("Quick Access")
                         .font(.headline)
-                        .padding(.horizontal)
                         .foregroundColor(.black)
+                        .padding(.horizontal)
 
                     VStack(spacing: 16) {
                         DashboardCard(
                             title: "Medical Records",
-                            subtitle: "View, upload, and organize your files",
+                            subtitle: "View, upload, and organize files",
                             icon: "folder.fill",
-                            color: Color.blue.opacity(0.9)
+                            color: .blue
                         )
                         DashboardCard(
                             title: "Doctors",
-                            subtitle: "Your connected healthcare professionals",
+                            subtitle: "Your healthcare contacts",
                             icon: "stethoscope",
-                            color: Color.green.opacity(0.8)
+                            color: .green
                         )
                         DashboardCard(
                             title: "Appointments",
-                            subtitle: "Upcoming consultations & reminders",
+                            subtitle: "Upcoming visits & reminders",
                             icon: "calendar.badge.clock",
-                            color: Color.orange.opacity(0.8)
+                            color: .orange
                         )
                         DashboardCard(
                             title: "Medications",
-                            subtitle: "Track your prescriptions & schedules",
+                            subtitle: "Track prescriptions & doses",
                             icon: "pills.fill",
-                            color: Color.purple.opacity(0.8)
+                            color: .purple
                         )
                     }
                     .padding(.horizontal)
                 }
                 .padding(.top, 20)
             }
+            .background(Color.white)
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.inline)
-            .background(Color.white)
         }
     }
 }
 
-// MARK: - Cards
+// MARK: - Reusable Cards
 struct SummaryCard: View {
     let icon: String
     let title: String
     let value: String
 
     var body: some View {
-        VStack(alignment: .center, spacing: 8) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(.white)
@@ -154,4 +156,60 @@ struct DashboardCard: View {
                     .foregroundColor(.gray)
             }
             Spacer()
-            Image(systemNam
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray.opacity(0.6))
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: .gray.opacity(0.15), radius: 5, x: 0, y: 3)
+    }
+}
+
+// MARK: - Placeholder Tabs (make real screens later)
+struct RecordsView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text.fill")
+                .font(.largeTitle)
+                .foregroundColor(.blue)
+            Text("Your medical records will appear here.")
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(Color.white.ignoresSafeArea())
+    }
+}
+
+struct ShareView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "square.and.arrow.up.fill")
+                .font(.largeTitle)
+                .foregroundColor(.blue)
+            Text("Share your reports securely.")
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(Color.white.ignoresSafeArea())
+    }
+}
+
+struct SettingsView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "gearshape.fill")
+                .font(.largeTitle)
+                .foregroundColor(.blue)
+            Text("Manage app preferences and account.")
+                .foregroundColor(.gray)
+        }
+        .padding()
+        .background(Color.white.ignoresSafeArea())
+    }
+}
+
+// MARK: - Preview
+#Preview {
+    DashboardView()
+}

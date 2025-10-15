@@ -1,18 +1,26 @@
 import Foundation
+import Combine
 import FirebaseAuth
 
-@MainActor
 final class SessionViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = (Auth.auth().currentUser != nil)
     private var handle: AuthStateDidChangeListenerHandle?
 
     init() {
-        handle = Auth.auth().addStateDidChangeListener { _, user in
-            Task { @MainActor in self.isAuthenticated = (user != nil) }
+        handle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            DispatchQueue.main.async {
+                self?.isAuthenticated = (user != nil)
+            }
         }
     }
 
-    deinit { if let h = handle { Auth.auth().removeStateDidChangeListener(h) } }
+    deinit {
+        if let h = handle {
+            Auth.auth().removeStateDidChangeListener(h)
+        }
+    }
 
-    func logout() { try? Auth.auth().signOut() }
+    func logout() {
+        do { try Auth.auth().signOut() } catch { print("Signout error:", error) }
+    }
 }
