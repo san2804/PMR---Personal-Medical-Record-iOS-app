@@ -1,5 +1,6 @@
 import SwiftUI
 import LocalAuthentication
+import FirebaseAuth
 
 // MARK: - LoginView
 struct LoginView: View {
@@ -7,16 +8,17 @@ struct LoginView: View {
     @State private var password: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
+    @State private var showingSignup: Bool = false
+    @State private var resetSentBanner: Bool = false
 
     var body: some View {
         ZStack {
-            // White background
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 // Logo + Title
                 VStack(spacing: 12) {
-                    Image("PMRLogo") // Put your logo in Assets.xcassets with this name
+                    Image("PMRLogo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 96, height: 96)
@@ -53,6 +55,12 @@ struct LoginView: View {
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    if resetSentBanner {
+                        Text("Password reset email sent.")
+                            .font(.footnote)
+                            .foregroundColor(.green)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
                     Button(action: signIn) {
                         HStack {
@@ -66,7 +74,7 @@ struct LoginView: View {
                     .disabled(!isValid || isLoading)
                     .opacity(!isValid || isLoading ? 0.6 : 1)
 
-                    // Biometrics shortcut
+                    // Biometrics shortcut (optional; does not replace Firebase login)
                     Button(action: authenticateBiometrics) {
                         Label("Use Face ID", systemImage: "faceid")
                             .font(.subheadline.weight(.semibold))
@@ -82,17 +90,22 @@ struct LoginView: View {
 
                 // Footer
                 HStack(spacing: 6) {
-                    Button("Forgot password?") { }
+                    Button("Forgot password?") { sendPasswordReset() }
                         .foregroundColor(.gray)
                         .font(.footnote)
                     Text("·").foregroundColor(.gray)
-                    Button("Create account") { }
+                    Button("Create account") { showingSignup = true }
                         .foregroundColor(.black)
                         .font(.footnote.weight(.semibold))
                 }
                 .padding(.bottom, 24)
             }
         }
+        .sheet(isPresented: $showingSignup) {
+            NavigationStack { SignupView() }
+        }
+        .onChange(of: email) { _ in errorMessage = nil; resetSentBanner = false }
+        .onChange(of: password) { _ in errorMessage = nil }
     }
 
     // MARK: - Validation & Actions
@@ -105,10 +118,37 @@ struct LoginView: View {
             errorMessage = "Enter a valid email and a password with 6+ characters."
             return
         }
-        isLoading = true
         errorMessage = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
+        isLoading = true
+
+        Task {
+            do {
+                _ = try await Auth.auth().signIn(withEmail: email, password: password)
+                await MainActor.run { isLoading = false }
+                // SessionViewModel will switch to Dashboard automatically.
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = (error as NSError).localizedDescription
+                }
+            }
+        }
+    }
+
+    private func sendPasswordReset() {
+        guard email.isValidEmail else {
+            errorMessage = "Enter your email above to receive a reset link."
+            return
+        }
+        errorMessage = nil
+        resetSentBanner = false
+        Task {
+            do {
+                try await Auth.auth().sendPasswordReset(withEmail: email)
+                await MainActor.run { resetSentBanner = true }
+            } catch {
+                await MainActor.run { errorMessage = (error as NSError).localizedDescription }
+            }
         }
     }
 

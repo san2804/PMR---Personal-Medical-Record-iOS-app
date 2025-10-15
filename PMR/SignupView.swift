@@ -1,5 +1,7 @@
 import SwiftUI
 import LocalAuthentication
+import FirebaseAuth
+import FirebaseFirestore
 
 // MARK: - SignupView
 struct SignupView: View {
@@ -131,7 +133,7 @@ struct SignupView: View {
         return predicate.evaluate(with: value)
     }
 
-    // MARK: - Actions
+    // MARK: - Actions (Firebase)
     private func signUp() {
         guard formValid else {
             errorMessage = "Please complete all fields correctly and accept the terms."
@@ -140,8 +142,34 @@ struct SignupView: View {
         errorMessage = nil
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            isLoading = false
+        Task {
+            do {
+                // 1) Create user in Firebase Auth
+                let result = try await Auth.auth().createUser(withEmail: email, password: password)
+                let uid = result.user.uid
+
+                // 2) Save basic profile in Firestore
+                let db = Firestore.firestore()
+                try await db.collection("users").document(uid).setData([
+                    "uid": uid,
+                    "fullName": fullName,
+                    "email": email,
+                    "createdAt": FieldValue.serverTimestamp()
+                ])
+
+                // 3) (Optional) send verification
+                try? await result.user.sendEmailVerification()
+
+                await MainActor.run {
+                    isLoading = false
+                    dismiss()   // SessionViewModel will show Dashboard automatically
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = (error as NSError).localizedDescription
+                }
+            }
         }
     }
 }
