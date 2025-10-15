@@ -1,28 +1,56 @@
 import SwiftUI
+import Combine
+import FirebaseAuth
+import FirebaseFirestore
+
+// MARK: - ViewModel
+@MainActor
+final class DashboardVM: ObservableObject {
+    @Published var displayName: String = "User"
+    @Published var recordsCount: Int = 0
+    @Published var loading: Bool = false
+    @Published var error: String?
+
+    private let db = Firestore.firestore()
+
+    func load() async {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        loading = true; error = nil
+        defer { loading = false }
+
+        do {
+            // User name
+            let userDoc = try await db.collection("users").document(uid).getDocument()
+            if let fullName = userDoc.data()?["fullName"] as? String, !fullName.isEmpty {
+                displayName = fullName
+            }
+
+            // Records count
+            let snap = try await db.collection("records")
+                .whereField("userId", isEqualTo: uid)
+                .getDocuments()
+            recordsCount = snap.documents.count
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
 
 // MARK: - Root Tabbed Dashboard
 struct DashboardView: View {
     var body: some View {
         TabView {
             HomeDashboardView()
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
+                .tabItem { Label("Home", systemImage: "house.fill") }
 
             RecordsView()
-                .tabItem {
-                    Label("Records", systemImage: "doc.text.fill")
-                }
+                .tabItem { Label("Records", systemImage: "doc.text.fill") }
 
             ShareView()
-                .tabItem {
-                    Label("Share", systemImage: "square.and.arrow.up.fill")
-                }
+                .tabItem { Label("Share", systemImage: "square.and.arrow.up.fill") }
 
             SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .tint(.blue)
     }
@@ -30,6 +58,8 @@ struct DashboardView: View {
 
 // MARK: - Home Dashboard (first tab)
 struct HomeDashboardView: View {
+    @StateObject private var vm = DashboardVM()
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -37,7 +67,7 @@ struct HomeDashboardView: View {
 
                     // Header with logo and greeting
                     HStack(spacing: 15) {
-                        Image("PMRLogo") // add to Assets as PMRLogo
+                        Image("PMRLogo")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 50, height: 50)
@@ -45,10 +75,10 @@ struct HomeDashboardView: View {
                             .shadow(color: .gray.opacity(0.3), radius: 4, x: 0, y: 2)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Welcome Back,")
+                            Text("Welcome back,")
                                 .font(.headline)
                                 .foregroundColor(.gray)
-                            Text("Sandil 👋")
+                            Text("\(vm.displayName) 👋")
                                 .font(.title3.bold())
                                 .foregroundColor(.black)
                         }
@@ -56,10 +86,17 @@ struct HomeDashboardView: View {
                     }
                     .padding(.horizontal)
 
+                    if let error = vm.error {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                            .padding(.horizontal)
+                    }
+
                     // Quick summary cards
                     HStack(spacing: 16) {
-                        SummaryCard(icon: "heart.fill", title: "Health Score", value: "82")
-                        SummaryCard(icon: "doc.text.fill", title: "Records", value: "12")
+                        SummaryCard(icon: "heart.fill", title: "Health Score", value: "—")
+                        SummaryCard(icon: "doc.text.fill", title: "Records", value: "\(vm.recordsCount)")
                     }
                     .padding(.horizontal)
 
@@ -98,10 +135,22 @@ struct HomeDashboardView: View {
                     .padding(.horizontal)
                 }
                 .padding(.top, 20)
+                .refreshable { await vm.load() }
             }
             .background(Color.white)
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if vm.loading {
+                    ToolbarItem(placement: .topBarTrailing) { ProgressView() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { Task { await vm.load() } } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
+            .task { await vm.load() }
         }
     }
 }
@@ -166,7 +215,7 @@ struct DashboardCard: View {
     }
 }
 
-// MARK: - Placeholder Tabs (make real screens later)
+// MARK: - Placeholder Tabs
 struct RecordsView: View {
     var body: some View {
         VStack(spacing: 12) {
@@ -196,20 +245,27 @@ struct ShareView: View {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject var session: SessionViewModel
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "gearshape.fill")
-                .font(.largeTitle)
-                .foregroundColor(.blue)
-            Text("Manage app preferences and account.")
-                .foregroundColor(.gray)
+        NavigationStack {
+            List {
+                Section {
+                    Button(role: .destructive) { session.logout() } label: {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Log Out")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Settings")
         }
-        .padding()
-        .background(Color.white.ignoresSafeArea())
     }
 }
 
 // MARK: - Preview
 #Preview {
     DashboardView()
+        .environmentObject(SessionViewModel())
 }
