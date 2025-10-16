@@ -19,13 +19,11 @@ final class DashboardVM: ObservableObject {
         defer { loading = false }
 
         do {
-            // User name
             let userDoc = try await db.collection("users").document(uid).getDocument()
             if let fullName = userDoc.data()?["fullName"] as? String, !fullName.isEmpty {
                 displayName = fullName
             }
 
-            // Records count
             let snap = try await db.collection("records")
                 .whereField("userId", isEqualTo: uid)
                 .getDocuments()
@@ -107,30 +105,49 @@ struct HomeDashboardView: View {
                         .padding(.horizontal)
 
                     VStack(spacing: 16) {
-                        DashboardCard(
-                            title: "Medical Records",
-                            subtitle: "View, upload, and organize files",
-                            icon: "folder.fill",
-                            color: .blue
-                        )
-                        DashboardCard(
-                            title: "Doctors",
-                            subtitle: "Your healthcare contacts",
-                            icon: "stethoscope",
-                            color: .green
-                        )
-                        DashboardCard(
-                            title: "Appointments",
-                            subtitle: "Upcoming visits & reminders",
-                            icon: "calendar.badge.clock",
-                            color: .orange
-                        )
-                        DashboardCard(
-                            title: "Medications",
-                            subtitle: "Track prescriptions & doses",
-                            icon: "pills.fill",
-                            color: .purple
-                        )
+                        // Medical Records
+                        NavigationLink { RecordsHomeView() } label: {
+                            DashboardCard(
+                                title: "Medical Records",
+                                subtitle: "View, upload, and organize files",
+                                icon: "folder.fill",
+                                color: .blue
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Doctors
+                        NavigationLink { DoctorsView() } label: {
+                            DashboardCard(
+                                title: "Doctors",
+                                subtitle: "Your healthcare contacts",
+                                icon: "stethoscope",
+                                color: .green
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Appointments
+                        NavigationLink { AppointmentsView() } label: {
+                            DashboardCard(
+                                title: "Appointments",
+                                subtitle: "Upcoming visits & reminders",
+                                icon: "calendar.badge.clock",
+                                color: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        // Medications
+                        NavigationLink { MedicationsView() } label: {
+                            DashboardCard(
+                                title: "Medications",
+                                subtitle: "Track prescriptions & doses",
+                                icon: "pills.fill",
+                                color: .purple
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal)
                 }
@@ -215,7 +232,7 @@ struct DashboardCard: View {
     }
 }
 
-// MARK: - Placeholder Tabs
+// MARK: - Placeholder Tabs & Destinations
 struct RecordsView: View {
     var body: some View {
         VStack(spacing: 12) {
@@ -261,6 +278,28 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+}
+
+// Destination stubs for the dashboard cards
+struct DoctorsView: View {
+    var body: some View {
+        List { Text("Add doctors here") }
+            .navigationTitle("Doctors")
+    }
+}
+
+struct AppointmentsView: View {
+    var body: some View {
+        List { Text("Upcoming appointments") }
+            .navigationTitle("Appointments")
+    }
+}
+
+struct MedicationsView: View {
+    var body: some View {
+        List { Text("Your medications") }
+            .navigationTitle("Medications")
     }
 }
 
