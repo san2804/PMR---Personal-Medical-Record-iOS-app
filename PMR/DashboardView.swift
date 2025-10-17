@@ -243,7 +243,7 @@ struct RecordsView: View {
                 .foregroundColor(.gray)
         }
         .padding()
-        .background(Color.white.ignoresSafeArea())
+        
     }
 }
 
@@ -257,7 +257,7 @@ struct ShareView: View {
                 .foregroundColor(.gray)
         }
         .padding()
-        .background(Color.white.ignoresSafeArea())
+        
     }
 }
 
