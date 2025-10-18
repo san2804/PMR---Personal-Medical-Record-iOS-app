@@ -26,8 +26,9 @@ struct RecordsHomeView: View {
     var body: some View {
         List {
             ForEach(filtered) { record in
+                // RecordsHomeView.swift  (inside List -> ForEach)
                 NavigationLink {
-                    RecordDetailView(record: record)
+                    FilePreviewView(filePath: record.filePath, title: record.title)
                 } label: {
                     RecordRow(r: record)
                 }
@@ -130,51 +131,9 @@ struct RecordRow: View {
     }
 }
 
-// MARK: - Record Detail View with Preview
-struct RecordDetailView: View {
-    let record: RecordMeta
-    @State private var showPreview = false
 
-    var body: some View {
-        List {
-            Section("Details") {
-                LabeledContent("Title", value: record.title)
-                LabeledContent("Provider", value: record.provider)
-                LabeledContent("Category", value: record.category)
-                LabeledContent(
-                    "Date",
-                    value: record.dateOfService.dateValue()
-                        .formatted(date: .abbreviated, time: .omitted)
-                )
-            }
 
-            Section("File") {
-                if !record.filePath.isEmpty {
-                    Text(record.filePath)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .lineLimit(2)
 
-                    Button {
-                        showPreview = true
-                    } label: {
-                        Label("Open File", systemImage: "doc.text.magnifyingglass")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                    }
-                } else {
-                    Text("No file linked to this record.")
-                        .foregroundColor(.gray)
-                        .font(.footnote)
-                }
-            }
-        }
-        .navigationTitle("Record Details")
-        .sheet(isPresented: $showPreview) {
-            QuickLookPreview(filePath: record.filePath)
-        }
-    }
-}
 
 // MARK: - QuickLook Previewer
 struct QuickLookPreview: UIViewControllerRepresentable {

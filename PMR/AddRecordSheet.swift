@@ -1,6 +1,14 @@
+//
+//  AddRecordSheet.swift
+//  PMR
+//
+//  Created by Sandil on 2025-10-16.
+//
+
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import UniformTypeIdentifiers
 
 struct AddRecordSheet: View {
     var onDone: () -> Void
@@ -46,16 +54,84 @@ struct AddRecordSheet: View {
                     Button("Close") { dismiss() }
                 }
             }
+
+            // MARK: - Document Scanner
+            .sheet(isPresented: $showScanner) {
+                DocumentScannerView(onSave: { url in
+                    Task {
+                        do {
+                            try await RecordRepository().uploadAndCreateRecord(
+                                from: url,
+                                inferredUTType: .pdf,
+                                title: url.deletingPathExtension().lastPathComponent
+                            )
+                            onDone()
+                        } catch {
+                            print("Upload error (Scanner):", error)
+                        }
+                    }
+                })
+            }
+
+            // MARK: - File Picker
             .sheet(isPresented: $showFilePicker) {
-                FilePickerView()
+                FilePickerView(onPicked: { url in
+                    Task {
+                        do {
+                            try await RecordRepository().uploadAndCreateRecord(
+                                from: url,
+                                inferredUTType: UTType(filenameExtension: url.pathExtension),
+                                title: url.deletingPathExtension().lastPathComponent
+                            )
+                            onDone()
+                        } catch {
+                            print("Upload error (Files):", error)
+                        }
+                    }
+                })
             }
+
+            // MARK: - Photo Picker
             .sheet(isPresented: $showPhotoPicker) {
-                PhotoPickerView()
+                PhotoPickerView(onPicked: { url in
+                    Task {
+                        do {
+                            try await RecordRepository().uploadAndCreateRecord(
+                                from: url,
+                                inferredUTType: .jpeg,
+                                title: url.deletingPathExtension().lastPathComponent
+                            )
+                            onDone()
+                        } catch {
+                            print("Upload error (Photos):", error)
+                        }
+                    }
+                })
             }
+
+            // MARK: - Note Creator
             .sheet(isPresented: $showNoteSheet) {
-                CreateNoteView()
+                CreateNoteView(onSave: { title, content in
+                    Task {
+                        do {
+                            // Write to temp file before upload
+                            let tmp = FileManager.default.temporaryDirectory
+                                .appendingPathComponent("\(UUID().uuidString).txt")
+                            try content.data(using: .utf8)?.write(to: tmp, options: .atomic)
+
+                            try await RecordRepository().uploadAndCreateRecord(
+                                from: tmp,
+                                inferredUTType: .plainText,
+                                title: title,
+                                category: "Note"
+                            )
+                            onDone()
+                        } catch {
+                            print("Upload error (Note):", error)
+                        }
+                    }
+                })
             }
-            .onDisappear { onDone() }
         }
     }
 }

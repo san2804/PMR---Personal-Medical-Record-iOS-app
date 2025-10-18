@@ -19,11 +19,15 @@ final class DashboardVM: ObservableObject {
         defer { loading = false }
 
         do {
+            // Fetch user display name
             let userDoc = try await db.collection("users").document(uid).getDocument()
             if let fullName = userDoc.data()?["fullName"] as? String, !fullName.isEmpty {
                 displayName = fullName
+            } else {
+                displayName = "User"
             }
 
+            // Fetch count of records belonging to current user
             let snap = try await db.collection("records")
                 .whereField("userId", isEqualTo: uid)
                 .getDocuments()
@@ -41,7 +45,7 @@ struct DashboardView: View {
             HomeDashboardView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
 
-            RecordsView()
+            RecordsHomeView()
                 .tabItem { Label("Records", systemImage: "doc.text.fill") }
 
             ShareView()
@@ -84,6 +88,7 @@ struct HomeDashboardView: View {
                     }
                     .padding(.horizontal)
 
+                    // Error display
                     if let error = vm.error {
                         Text(error)
                             .foregroundColor(.red)
@@ -226,27 +231,12 @@ struct DashboardCard: View {
                 .foregroundColor(.gray.opacity(0.6))
         }
         .padding()
-        .background(Color.white)
         .cornerRadius(16)
         .shadow(color: .gray.opacity(0.15), radius: 5, x: 0, y: 3)
     }
 }
 
-// MARK: - Placeholder Tabs & Destinations
-struct RecordsView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "doc.text.fill")
-                .font(.largeTitle)
-                .foregroundColor(.blue)
-            Text("Your medical records will appear here.")
-                .foregroundColor(.gray)
-        }
-        .padding()
-        
-    }
-}
-
+// MARK: - Placeholder Views
 struct ShareView: View {
     var body: some View {
         VStack(spacing: 12) {
@@ -257,13 +247,11 @@ struct ShareView: View {
                 .foregroundColor(.gray)
         }
         .padding()
-        
     }
 }
 
 struct SettingsView: View {
     @EnvironmentObject var session: SessionViewModel
-
     var body: some View {
         NavigationStack {
             List {
@@ -278,14 +266,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
-    }
-}
-
-// Destination stubs for the dashboard cards
-struct DoctorsView: View {
-    var body: some View {
-        List { Text("Add doctors here") }
-            .navigationTitle("Doctors")
     }
 }
 

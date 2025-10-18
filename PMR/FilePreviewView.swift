@@ -6,29 +6,17 @@ struct FilePreviewView: View {
     let filePath: String
     let title: String
 
-    @State private var fileMissing = false
-
     var body: some View {
         Group {
             if isRemote, let url = URL(string: filePath) {
-                SafariPreview(url: url)             // remote http(s)
-                    .edgesIgnoringSafeArea(.all)
+                _SafariPreview(url: url).edgesIgnoringSafeArea(.all)
             } else if FileManager.default.fileExists(atPath: filePath) {
-                QuickLookPreview(filePath: filePath) // local file
-                    .edgesIgnoringSafeArea(.all)
+                _LocalQuickLookPreview(filePath: filePath).edgesIgnoringSafeArea(.all)
             } else {
-                // graceful fallback if the local file isn’t there
                 VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.orange)
-                    Text("File not found")
-                        .font(.headline)
-                    Text(filePath)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                    Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundColor(.orange)
+                    Text("File not found").font(.headline)
+                    Text(filePath).font(.caption).foregroundColor(.gray).multilineTextAlignment(.center).padding(.horizontal)
                 }
             }
         }
@@ -37,13 +25,12 @@ struct FilePreviewView: View {
     }
 
     private var isRemote: Bool {
-        filePath.lowercased().hasPrefix("http://") ||
-        filePath.lowercased().hasPrefix("https://")
+        filePath.lowercased().hasPrefix("http://") || filePath.lowercased().hasPrefix("https://")
     }
 }
 
-// MARK: QuickLook for local files
-struct QuickLookPreview: UIViewControllerRepresentable {
+// MARK: - Local QuickLook (file-scoped + unique name)
+fileprivate struct _LocalQuickLookPreview: UIViewControllerRepresentable {
     let filePath: String
 
     func makeUIViewController(context: Context) -> QLPreviewController {
@@ -58,20 +45,16 @@ struct QuickLookPreview: UIViewControllerRepresentable {
     final class Coordinator: NSObject, QLPreviewControllerDataSource {
         let filePath: String
         init(filePath: String) { self.filePath = filePath }
-
         func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
-        func previewController(_ controller: QLPreviewController,
-                               previewItemAt index: Int) -> QLPreviewItem {
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
             URL(fileURLWithPath: filePath) as QLPreviewItem
         }
     }
 }
 
-// MARK: Safari for remote URLs
-struct SafariPreview: UIViewControllerRepresentable {
+// MARK: - Safari for remote URLs (file-scoped + unique name)
+fileprivate struct _SafariPreview: UIViewControllerRepresentable {
     let url: URL
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
+    func makeUIViewController(context: Context) -> SFSafariViewController { SFSafariViewController(url: url) }
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }

@@ -26,36 +26,28 @@ struct AddEditDoctorView: View {
                 Section("Basic info") {
                     TextField("Full name", text: $input.fullName)
                     TextField("Specialty (e.g., Cardiologist)", text: $input.specialty)
-                    TextField("Clinic/Hospital", text: binding(\.clinicName))
+                    TextField("Clinic/Hospital", text: optBinding(\.clinicName))
                 }
-
                 Section("Contact") {
-                    TextField("Phone", text: binding(\.phone))
+                    TextField("Phone", text: optBinding(\.phone))
                         .keyboardType(.phonePad)
-                    TextField("Email", text: binding(\.email))
+                    TextField("Email", text: optBinding(\.email))
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
-                    TextField("Address", text: binding(\.address))
+                    TextField("Address", text: optBinding(\.address))
                 }
             }
             .navigationTitle(existing == nil ? "Add Doctor" : "Edit Doctor")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        onSave(input)
-                        dismiss()
-                    }
-                    .disabled(!input.isValid)
+                    Button("Save") { onSave(input); dismiss() }.disabled(!input.isValid)
                 }
             }
         }
     }
 
-    // Convenience binding for optional strings in a text field
-    private func binding(_ keyPath: WritableKeyPath<DoctorInput, String?>) -> Binding<String> {
+    private func optBinding(_ keyPath: WritableKeyPath<DoctorInput, String?>) -> Binding<String> {
         Binding(
             get: { input[keyPath: keyPath] ?? "" },
             set: { input[keyPath: keyPath] = $0 }

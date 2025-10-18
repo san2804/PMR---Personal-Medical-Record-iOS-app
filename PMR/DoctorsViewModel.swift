@@ -1,7 +1,7 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseFirestoreSwift
+import Combine
 
 @MainActor
 final class DoctorsViewModel: ObservableObject {
@@ -10,76 +10,81 @@ final class DoctorsViewModel: ObservableObject {
     @Published var error: String?
 
     private let db = Firestore.firestore()
-
     var uid: String? { Auth.auth().currentUser?.uid }
 
+    // MARK: - Load all doctors
     func load() async {
-        guard let uid = uid else { return }
+        guard let uid else { return }
         loading = true; error = nil
         defer { loading = false }
+
         do {
             let snap = try await db.collection("doctors")
                 .whereField("userId", isEqualTo: uid)
                 .order(by: "fullName")
                 .getDocuments()
 
-            items = try snap.documents.compactMap { try $0.data(as: Doctor.self) }
-        } catch { self.error = error.localizedDescription }
+            self.items = snap.documents.map { Doctor(id: $0.documentID, data: $0.data()) }
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
+    // MARK: - Add new doctor
     func add(_ input: DoctorInput) async throws {
-        guard let uid = uid else { return }
+        guard let uid else { return }
         let now = Timestamp(date: Date())
-        var doc = Doctor(
-            userId: uid,
-            fullName: input.fullName.trimmingCharacters(in: .whitespacesAndNewlines),
-            specialty: input.specialty.trimmingCharacters(in: .whitespacesAndNewlines),
-            clinicName: input.clinicName?.nilIfBlank(),
-            phone: input.phone?.nilIfBlank(),
-            email: input.email?.nilIfBlank(),
-            address: input.address?.nilIfBlank(),
-            createdAt: now,
-            updatedAt: now
-        )
-        let ref = try db.collection("doctors").addDocument(from: doc)
-        doc.id = ref.documentID
-        items.insert(doc, at: items.insertionIndex(for: doc.fullName))
+
+        var data = [String: Any]()
+        data["userId"] = uid
+        data["fullName"] = input.fullName.trimmed()
+        data["specialty"] = input.specialty.trimmed()
+        if let v = input.clinicName.nilIfBlank() { data["clinicName"] = v }   // <-- no ?
+        if let v = input.phone.nilIfBlank()      { data["phone"] = v }        // <-- no ?
+        if let v = input.email.nilIfBlank()      { data["email"] = v }        // <-- no ?
+        if let v = input.address.nilIfBlank()    { data["address"] = v }      // <-- no ?
+        data["createdAt"] = now
+        data["updatedAt"] = now
+
+        let ref = try await db.collection("doctors").addDocument(data: data)
+
+        var newDoctor = Doctor(id: ref.documentID, data: data)
+        newDoctor.updatedAt = now
+        insertAlphabetically(newDoctor)
     }
 
+    // MARK: - Update existing doctor
     func update(_ id: String, with input: DoctorInput) async throws {
-        guard let uid = uid else { return }
-        let patch: [String: Any] = [
-            "userId": uid,
-            "fullName": input.fullName,
-            "specialty": input.specialty,
-            "clinicName": input.clinicName?.nilIfBlank() as Any,
-            "phone": input.phone?.nilIfBlank() as Any,
-            "email": input.email?.nilIfBlank() as Any,
-            "address": input.address?.nilIfBlank() as Any,
-            "updatedAt": FieldValue.serverTimestamp()
-        ]
+        guard let uid else { return }
+
+        var patch = [String: Any]()
+        patch["userId"] = uid
+        patch["fullName"] = input.fullName.trimmed()
+        patch["specialty"] = input.specialty.trimmed()
+        if let v = input.clinicName.nilIfBlank() { patch["clinicName"] = v }  // <-- no ?
+        if let v = input.phone.nilIfBlank()      { patch["phone"] = v }       // <-- no ?
+        if let v = input.email.nilIfBlank()      { patch["email"] = v }       // <-- no ?
+        if let v = input.address.nilIfBlank()    { patch["address"] = v }     // <-- no ?
+        patch["updatedAt"] = FieldValue.serverTimestamp()
+
         try await db.collection("doctors").document(id).setData(patch, merge: true)
-        // refresh local
         await load()
     }
 
+    // MARK: - Delete
     func delete(at offsets: IndexSet) async {
         let ids = offsets.compactMap { items[$0].id }
-        items.remove(atOffsets: offsets)
-        for id in ids {
-            try? await db.collection("doctors").document(id).delete()
-        }
+        for index in offsets.sorted(by: >) { items.remove(at: index) }
+        for id in ids { try? await db.collection("doctors").document(id).delete() }
+    }
+
+    private func insertAlphabetically(_ doctor: Doctor) {
+        let idx = items.firstIndex { $0.fullName.lowercased() > doctor.fullName.lowercased() } ?? items.count
+        items.insert(doctor, at: idx)
     }
 }
 
-extension Array where Element == Doctor {
-    /// Keep list alphabetized by name when inserting a single item
-    func insertionIndex(for name: String) -> Int {
-        let lower = name.lowercased()
-        return firstIndex { $0.fullName.lowercased() > lower } ?? count
-    }
-}
-
+// Input DTO
 struct DoctorInput {
     var fullName: String = ""
     var specialty: String = ""
@@ -89,11 +94,14 @@ struct DoctorInput {
     var address: String? = nil
 
     var isValid: Bool {
-        !fullName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !specialty.trimmingCharacters(in: .whitespaces).isEmpty
+        !fullName.trimmed().isEmpty && !specialty.trimmed().isEmpty
     }
 }
 
+// Helpers
+private extension String {
+    func trimmed() -> String { trimmingCharacters(in: .whitespacesAndNewlines) }
+}
 private extension Optional where Wrapped == String {
     func nilIfBlank() -> String? {
         guard let s = self?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }

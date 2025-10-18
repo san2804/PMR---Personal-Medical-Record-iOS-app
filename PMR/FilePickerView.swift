@@ -1,11 +1,3 @@
-//
-//  FilePickerView.swift
-//  PMR
-//
-//  Created by Sandil on 2025-10-16.
-//
-
-
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -20,13 +12,29 @@ struct FilePickerView: UIViewControllerRepresentable {
         init(_ parent: FilePickerView) { self.parent = parent }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            if let file = urls.first { parent.onPicked(file) }
+            guard let url = urls.first else {
+                parent.dismiss()
+                return
+            }
+
+            // Start temporary access (for security-scoped URLs from Files app)
+            let needsAccess = url.startAccessingSecurityScopedResource()
+            defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+
+            // Directly return the picked file URL
+            parent.onPicked(url)
+            parent.dismiss()
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             parent.dismiss()
         }
     }
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf, .image])
+        // Allow selecting PDFs, images, or general data
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.pdf, .image, .data])
+        picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
         return picker
     }
