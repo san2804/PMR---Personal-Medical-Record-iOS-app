@@ -1,54 +1,58 @@
+// RecordsHomeView.swift
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
-import QuickLook
 
-// MARK: - Model
-struct RecordMeta: Identifiable, Codable {
-    @DocumentID var id: String?
-    let userId: String
-    let title: String
-    let provider: String
-    let category: String
-    let dateOfService: Timestamp
-    let filePath: String
-    let createdAt: Timestamp
-}
-
-// MARK: - Records Home
 struct RecordsHomeView: View {
-    @State private var items: [RecordMeta] = []
-    @State private var loading = false
-    @State private var error: String?
+    @StateObject private var vm = RecordsViewModel()
     @State private var showAdd = false
-    @State private var query = ""
 
     var body: some View {
         List {
-            ForEach(filtered) { record in
-                // RecordsHomeView.swift  (inside List -> ForEach)
+            ForEach(vm.filtered) { r in
                 NavigationLink {
-                    FilePreviewView(filePath: record.filePath, title: record.title)
+                    RecordDetailView(record: r)
                 } label: {
-                    RecordRow(r: record)
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.blue))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(r.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text("\(r.provider) • \(r.category)")
+                                .font(.caption)
+                                .foregroundStyle(.gray)
+                        }
+
+                        Spacer()
+
+                        // Trailing date
+                        Text(r.date, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                    }
+                    .padding(.vertical, 4)
                 }
+            }
+            .onDelete { idx in
+                Task { await vm.delete(at: idx) }
             }
         }
         .overlay {
-            if loading { ProgressView() }
-            else if let e = error {
-                Text(e)
-                    .foregroundColor(.red)
-                    .padding()
-            } else if items.isEmpty {
+            if vm.loading {
+                ProgressView()
+            } else if let e = vm.error {
+                Text(e).foregroundColor(.red).padding()
+            } else if vm.items.isEmpty {
                 ContentUnavailableView(
                     "No records yet",
                     systemImage: "doc.text",
-                    description: Text("Tap + to add a PDF, image, or scan.")
+                    description: Text("Tap + to add a note.")
                 )
             }
         }
-        .searchable(text: $query)
+        .searchable(text: $vm.query)
         .navigationTitle("Medical Records")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -57,115 +61,53 @@ struct RecordsHomeView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { Task { await load() } } label: {
+                Button { Task { await vm.load() } } label: {
                     Image(systemName: "arrow.clockwise")
                 }
             }
         }
-        .task { await load() }
         .sheet(isPresented: $showAdd) {
-            AddRecordSheet { Task { await load() } }
-        }
-    }
-
-    // MARK: - Filtered Search
-    private var filtered: [RecordMeta] {
-        query.isEmpty
-        ? items
-        : items.filter {
-            $0.title.localizedCaseInsensitiveContains(query) ||
-            $0.provider.localizedCaseInsensitiveContains(query)
-        }
-    }
-
-    // MARK: - Load from Firestore
-    @MainActor
-    private func load() async {
-        guard let uid = Auth.auth().currentUser?.uid else { return }
-        loading = true; error = nil
-        defer { loading = false }
-
-        do {
-            let db = Firestore.firestore()
-            let snapshot = try await db.collection("records")
-                .whereField("userId", isEqualTo: uid)
-                .order(by: "dateOfService", descending: true)
-                .getDocuments()
-            items = try snapshot.documents.compactMap { doc in
-                try doc.data(as: RecordMeta.self)
+            AddRecordSheet {
+                Task { await vm.load() }
             }
-        } catch {
-            self.error = error.localizedDescription
         }
+        .refreshable { await vm.load() }
+        .task { await vm.load() }
     }
 }
 
-// MARK: - Record Row
-struct RecordRow: View {
-    let r: RecordMeta
+// MARK: - Detail
+
+struct RecordDetailView: View {
+    let record: TextRecord
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "doc.text.fill")
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.blue)
-                )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 16) {
+                    Label(record.category, systemImage: "tag")
+                    Label(record.provider, systemImage: "person.text.rectangle")
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(r.title)
-                    .font(.subheadline.weight(.semibold))
-                Text(r.provider)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-
-            Spacer()
-            Text(r.dateOfService.dateValue(), style: .date)
+                    // Date displayed via a Text inside Label's title closure
+                    Label {
+                        Text(record.date, style: .date)
+                    } icon: {
+                        Image(systemName: "calendar")
+                    }
+                }
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundStyle(.gray)
+
+                Divider().padding(.vertical, 8)
+
+                Text(record.content)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
         }
-        .padding(.vertical, 4)
-    }
-}
-
-
-
-
-
-// MARK: - QuickLook Previewer
-struct QuickLookPreview: UIViewControllerRepresentable {
-    let filePath: String
-
-    func makeUIViewController(context: Context) -> QLPreviewController {
-        let controller = QLPreviewController()
-        controller.dataSource = context.coordinator
-        return controller
-    }
-
-    func updateUIViewController(_ controller: QLPreviewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(filePath: filePath)
-    }
-
-    class Coordinator: NSObject, QLPreviewControllerDataSource {
-        let filePath: String
-        init(filePath: String) { self.filePath = filePath }
-
-        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
-
-        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
-            URL(fileURLWithPath: filePath) as QLPreviewItem
-        }
-    }
-}
-
-// MARK: - Preview
-#Preview {
-    NavigationStack {
-        RecordsHomeView()
+        .navigationTitle("Record")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
