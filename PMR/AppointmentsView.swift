@@ -2,9 +2,18 @@
 //  AppointmentsView.swift
 //  PMR
 //
+//  Created by Sandil on 2025-10-19.
+//
+
+
+//
+//  AppointmentsView.swift
+//  PMR
+//
 
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct AppointmentsView: View {
     @StateObject private var vm = AppointmentsVM()
@@ -103,6 +112,8 @@ struct AppointmentEditor: View {
     @State private var endAt: Date? = nil
     @State private var isAllDay = false
     @State private var remindMinutesBefore: Int? = 60
+    
+    typealias Timestamp = FirebaseFirestore.Timestamp
 
     var body: some View {
         NavigationStack {
@@ -121,6 +132,10 @@ struct AppointmentEditor: View {
                                displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
 
                     if !isAllDay {
+                        let endBinding = Binding<Date>(
+                                                get: { endAt ?? startAt.addingTimeInterval(3600) },
+                                                set: { endAt = $0 }
+                                            )
                         DatePicker("End",
                                    selection: Binding(get: {
                                         endAt ?? startAt.addingTimeInterval(3600)

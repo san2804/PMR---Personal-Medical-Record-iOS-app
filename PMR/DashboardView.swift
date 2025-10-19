@@ -277,12 +277,6 @@ struct SettingsView: View {
     }
 }
 
-struct AppointmentsView: View {
-    var body: some View {
-        List { Text("Upcoming appointments") }
-            .navigationTitle("Appointments")
-    }
-}
 
 struct MedicationsView: View {
     var body: some View {
