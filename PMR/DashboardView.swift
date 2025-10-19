@@ -19,7 +19,6 @@ final class DashboardVM: ObservableObject {
         defer { loading = false }
 
         do {
-            // Fetch user display name
             let userDoc = try await db.collection("users").document(uid).getDocument()
             if let fullName = userDoc.data()?["fullName"] as? String, !fullName.isEmpty {
                 displayName = fullName
@@ -27,7 +26,6 @@ final class DashboardVM: ObservableObject {
                 displayName = "User"
             }
 
-            // Fetch count of records belonging to current user
             let snap = try await db.collection("records")
                 .whereField("userId", isEqualTo: uid)
                 .getDocuments()
@@ -74,24 +72,25 @@ struct HomeDashboardView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 50, height: 50)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .shadow(color: .gray.opacity(0.3), radius: 4, x: 0, y: 2)
+                            .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Welcome back,")
                                 .font(.headline)
-                                .foregroundColor(.gray)
+                                .foregroundStyle(.secondary)   // adaptive
+
                             Text("\(vm.displayName) 👋")
                                 .font(.title3.bold())
-                                .foregroundColor(.black)
+                                .foregroundStyle(.primary)     // adaptive
                         }
                         Spacer()
                     }
                     .padding(.horizontal)
 
-                    // Error display
+                    // Error
                     if let error = vm.error {
                         Text(error)
-                            .foregroundColor(.red)
+                            .foregroundStyle(.red)
                             .font(.footnote)
                             .padding(.horizontal)
                     }
@@ -106,22 +105,20 @@ struct HomeDashboardView: View {
                     // Quick Access section
                     Text("Quick Access")
                         .font(.headline)
-                        .foregroundColor(.black)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal)
 
                     VStack(spacing: 16) {
-                        // Medical Records
                         NavigationLink { RecordsHomeView() } label: {
                             DashboardCard(
                                 title: "Medical Records",
-                                subtitle: "View, upload, and organize files",
+                                subtitle: "View Notes of Your Records",
                                 icon: "folder.fill",
                                 color: .blue
                             )
                         }
                         .buttonStyle(.plain)
 
-                        // Doctors
                         NavigationLink { DoctorsView() } label: {
                             DashboardCard(
                                 title: "Doctors",
@@ -132,7 +129,6 @@ struct HomeDashboardView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Appointments
                         NavigationLink { AppointmentsView() } label: {
                             DashboardCard(
                                 title: "Appointments",
@@ -143,7 +139,6 @@ struct HomeDashboardView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Medications
                         NavigationLink { MedicationsView() } label: {
                             DashboardCard(
                                 title: "Medications",
@@ -159,7 +154,7 @@ struct HomeDashboardView: View {
                 .padding(.top, 20)
                 .refreshable { await vm.load() }
             }
-            .background(Color.white)
+            .background(Color(.systemBackground)) // adaptive page bg
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -178,6 +173,7 @@ struct HomeDashboardView: View {
 }
 
 // MARK: - Reusable Cards
+
 struct SummaryCard: View {
     let icon: String
     let title: String
@@ -187,21 +183,25 @@ struct SummaryCard: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(12)
                 .background(Circle().fill(Color.blue))
+
             Text(title)
                 .font(.footnote)
-                .foregroundColor(.gray)
+                .foregroundStyle(.secondary)   // adaptive
+
             Text(value)
                 .font(.title2.bold())
-                .foregroundColor(.black)
+                .foregroundStyle(.primary)     // adaptive
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white)
-        .cornerRadius(18)
-        .shadow(color: .gray.opacity(0.15), radius: 6, x: 0, y: 4)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.secondarySystemBackground)) // adaptive card bg
+        )
+        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 4)
     }
 }
 
@@ -215,38 +215,46 @@ struct DashboardCard: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(RoundedRectangle(cornerRadius: 10).fill(color))
+
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(.black)
+                    .foregroundStyle(.primary)    // adaptive
+
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .foregroundStyle(.secondary)  // adaptive
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .foregroundColor(.gray.opacity(0.6))
+                .foregroundStyle(.tertiary)      // adaptive subtle arrow
         }
         .padding()
-        .cornerRadius(16)
-        .shadow(color: .gray.opacity(0.15), radius: 5, x: 0, y: 3)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .shadow(color: Color.black.opacity(0.06), radius: 5, x: 0, y: 3)
     }
 }
 
 // MARK: - Placeholder Views
+
 struct ShareView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "square.and.arrow.up.fill")
                 .font(.largeTitle)
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
             Text("Share your reports securely.")
-                .foregroundColor(.gray)
+                .foregroundStyle(.secondary)
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 }
 
@@ -285,6 +293,13 @@ struct MedicationsView: View {
 
 // MARK: - Preview
 #Preview {
-    DashboardView()
-        .environmentObject(SessionViewModel())
+    Group {
+        DashboardView()
+            .environmentObject(SessionViewModel())
+            .preferredColorScheme(.light)
+
+        DashboardView()
+            .environmentObject(SessionViewModel())
+            .preferredColorScheme(.dark)
+    }
 }
