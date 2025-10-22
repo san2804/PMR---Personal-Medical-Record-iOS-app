@@ -278,12 +278,7 @@ struct SettingsView: View {
 }
 
 
-struct MedicationsView: View {
-    var body: some View {
-        List { Text("Your medications") }
-            .navigationTitle("Medications")
-    }
-}
+
 
 // MARK: - Preview
 #Preview {
