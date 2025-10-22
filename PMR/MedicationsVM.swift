@@ -1,8 +1,17 @@
+//
+//  MedicationsVM.swift
+//  PMR
+//
+//  Created by Sandil on 2025-10-22.
+//
+
+
 // MedicationsVM.swift
 import Foundation
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import Combine
 
 @MainActor
 final class MedicationsVM: ObservableObject {
